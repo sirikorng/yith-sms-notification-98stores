@@ -300,6 +300,12 @@ if ( ! class_exists( 'YITH_WC_SMS_Notifications' ) ) {
 
 				}
 
+				$delay = apply_filters( 'ywsn_send_delay', 0 );
+				sleep( $delay );
+				
+				$sellers_sms = new YWSN_Messages( $order, true );
+				$sellers_sms->sellers_sms();
+
 			}
 
 			$delay = apply_filters( 'ywsn_send_delay', 0 );
@@ -312,7 +318,6 @@ if ( ! class_exists( 'YITH_WC_SMS_Notifications' ) ) {
 				$admin_sms->admins_sms();
 
 			}
-
 		}
 
 		/**

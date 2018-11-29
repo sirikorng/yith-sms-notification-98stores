@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * This file belongs to the YIT Plugin Framework.
  *
@@ -7,7 +7,7 @@
  * It is also available through the world-wide-web at this URL:
  * http://www.gnu.org/licenses/gpl-3.0.txt
  */
-
+ 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
@@ -34,6 +34,11 @@ if ( ! class_exists( 'YWSN_Messages' ) ) {
 		 * @var string single phone number
 		 */
 		private $_recipient;
+
+		/**
+		 * @var string single phone number
+		 */
+		private $_sellers;
 
 		/**
 		 * @var array admin phone numbers
@@ -87,6 +92,7 @@ if ( ! class_exists( 'YWSN_Messages' ) ) {
 
 			$this->_order        = $order;
 			$this->_recipient    = ( ( ! empty( $order ) && $customer ) ? yit_get_prop( $this->_order, '_billing_phone' ) : $phone );
+			$this->_sellers      = ( ( ! empty( $order ) && $customer ) ? $this->get_seller_numbers( $order ) : array() );
 			$this->_admins       = ( ( ! empty( $order ) && ! $customer ) ? $this->get_admin_numbers( $order ) : array() );
 			$this->_sms_gateway  = get_option( 'ywsn_sms_gateway' );
 			$this->_customer_sms = $customer;
@@ -152,6 +158,30 @@ if ( ! class_exists( 'YWSN_Messages' ) ) {
 			$message = $this->prepare_sms_content( $message );
 
 			foreach ( $this->_admins as $phone ) {
+
+				$this->send( $phone, $message );
+
+			}
+
+		}
+
+		/**
+		 * Send SMS message to multiple admins
+		 *
+		 * @since   1.0.0
+		 *
+		 * @param   $message
+		 *
+		 * @return  void
+		 * @author  Alberto Ruggiero
+		 */
+		public function sellers_sms( $message = '' ) {
+
+			$message = $this->prepare_sms_content( $message );
+                       
+                        $message = str_replace("Your order","[Seller] Your customer order",$message);
+
+			foreach ( $this->_sellers as $phone ) {
 
 				$this->send( $phone, $message );
 
@@ -282,6 +312,52 @@ if ( ! class_exists( 'YWSN_Messages' ) ) {
 
 			return $numbers;
 
+		}
+		
+		/**
+		 * Get admin numbers
+		 *
+		 * @since   1.0.3
+		 *
+		 * @param   $order
+		 *
+		 * @return  string
+		 * @author  Alberto Ruggiero
+		 */
+		private function get_seller_numbers( WC_Order $order ) {
+
+			global $wpdb;
+
+			$test_logger      = new WC_Logger();
+			$log = 'Seller Numbers: ';
+
+			$numbers	 = array();
+			$order_id    = yit_get_order_id( $order );
+			$log .="\r\n ".'order_id   :'.$order_id;
+
+			$sql         = "SELECT * FROM {$wpdb->prefix}dokan_orders WHERE order_id = %d";
+
+                        $log .="\r\n ".'sql   :'.$sql;
+			$dokan_order = $wpdb->get_row( $wpdb->prepare( $sql, $order_id ));		
+			
+
+			if ( isset($dokan_order) === true) {                        
+				
+	                 $log .="\r\n ".'seller_id :'.$dokan_order -> seller_id;
+					$dokan_settings = get_user_meta( $dokan_order->seller_id, 'dokan_profile_settings', true );
+					if ( isset( $dokan_settings['phone'] ) ) {
+						$log .= 'Phone : ';
+						if ( $dokan_settings['phone'] ) {
+							$log .= $dokan_settings['phone'];
+							array_push($numbers, $dokan_settings['phone'] );
+						}
+						$log .= "\r\n";
+					}
+				
+			}
+                        
+			$test_logger->add( 'ywsn-' . current_time( 'Y-m' ), $log );
+			return $numbers;
 		}
 
 		/**
